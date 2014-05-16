@@ -52,7 +52,7 @@
           <a href="http://www.rntz.net/">http://www.rntz.net</a>
 
           <aside class="notes">
-            CPS connected to many things &mdash; it's a microcosm of CS.
+            CPS exciting b/c connected to so many things;<br> "microcosm of CS".
           </aside>
         </section>
 
@@ -116,117 +116,63 @@ match (Star a) s k = match a s (\rest -> match (Star a) rest k) || k s
 matches a s = match a s null
           </code></pre>
           <p>{Haskell, Python} code at 
-            <!-- TODO: href this -->
             <a href="https://github.com/rntz/cps-talk">https://github.com/rntz/cps-talk</a>
           </p>
+
+          <aside class="notes">
+            <p>CPS by example. Backtracking search.</p>
+            <p>New technique in 10min, sucker's game.</p>
+          </aside>
         </section>
 
-        <section>
-          <pre><code data-trim class="haskell">
-data Re
-    -- character literals
-    = Lit Char
-    -- (Seq a b) is concatenation /ab/
-    | Seq Re Re
-    -- (Or a b) is choice /a|b/
-    | Or Re Re
-    -- (Star a) is iteration /a*/
-    | Star Re
-          </code></pre>
-        </section>
+<!--         <section>
+ !--           <pre><code data-trim class="haskell">
+ !-- data Re
+ !--     -- character literals
+ !--     = Lit Char
+ !--     -- (Seq a b) is concatenation /ab/
+ !--     | Seq Re Re
+ !--     -- (Or a b) is choice /a|b/
+ !--     | Or Re Re
+ !--     -- (Star a) is iteration /a*/
+ !--     | Star Re
+ !--           </code></pre>
+ !--         </section> -->
 
         <section>
           <!--<h2>Regular Expression Matching</h2>-->
           <!-- talk about generalizing the problem:
                finding a prefix & calling your continuation -->
+          <h2>The gist of CPS</h2>
           <pre><code data-trim class="haskell">
+matches :: Regexp -> String -> Bool
+          </code></pre>
+
+          <pre class="fragment"><code data-trim class="haskell">
+matchBetter :: Regexp -> String -> Maybe String
+          </code></pre>
+
+          <pre class="fragment"><code data-trim class="haskell">
+matchBest :: Regexp -> String -> [String]
+          </code></pre>
+
+          <div class="fragment">
+            <pre><code data-trim class="haskell">
 match :: Regexp -> String -> (String -> Bool) -> Bool
 --                           ^ CONTINUATION ^
-          </pre></code>
+            </pre></code>
 
-        <p>Consider <code>(match a s k)</code>.</p>
-        <p>Our continuation <code>k</code> is <strong>what to do next</strong>:</p>
-        <p><em>match the rest of the string</em>.</p>
+            <p>Our continuation is <strong>what to do next</strong>:</p>
+            <p><em>match the rest of the string</em>.</p>
+          </div>
 
-        <div style="color: #aaa;">
-        <p>Formally, we return <code>True</code> iff ∃ s₁, s₂ s.t.:</p>
-          <ul><li><code>s == s₁ ++ s₂</code>,</li>
-              <li><code>s₁</code> matches <code>a</code>,</li>
-              <li>and <code>k s₂ == True</code>.</li>
-          </ul>
-        </div>
+          <aside class="notes">
+            <p>Directly writing <code>matches</code>, prefix problem.
+            <p>Generalize to give "maybe suffix"; multiple matches problem.
+            <p>Generalize to give "suffix list"; iterator/lazy problem.
+            <p>There is another way!
+          </aside>
 
-        </section>
-
-        <section>
-          <h3>Case 1: Characters</h2>
-          <pre><code data-trim class="haskell">
-match :: Regexp -> String -> (String -> Bool) -> Bool
-match (Lit c) [] k = False
-match (Lit c) (x:xs) k =
-    if c == x
-    then k xs
-    else False
-          </code></pre>
-        </section>
-
-        <section>
-          <h3>Case 2: Concatenation</h2>
-          <pre><code data-trim class="haskell">
-match :: Regexp -> String -> (String -> Bool) -> Bool
-match (Seq a b) s k =
-    match a s                       -- match a...
-          (\rest -> match b rest k) -- then match b
-          </code></pre>
-          <!-- <p>(Our continuation is <strong>what to do next</strong>.)</p> -->
-        </section>
-
-        <section>
-          <h3>Case 3: Choice</h3>
-          <pre><code data-trim class="haskell">
-match :: Regexp -> String -> (String -> Bool) -> Bool
-match (Or a b) s k =
-    match a s k                 -- try matching a...
-    || match b s k              -- else try b
-          </code></pre>
-        </section>
-
-        <section>
-          <h3>Case 4: Iteration</h3>
-          <pre><code data-trim class="haskell">
-match :: Regexp -> String -> (String -> Bool) -> Bool
-match (Star a) s k =
-    -- one or more case, /aa*/
-    match a s (\rest -> match (Star a) rest k)
-    -- empty case, //
-    || k s
-          </code></pre>
-        </section>
-
-        <section>
-          <h3>The top-level continuation</h3>
-          <pre><code data-trim class="haskell">
-match :: Regexp -> String -> (String -> Bool) -> Bool
--- ... definition of match ...
-
-matches :: Regexp -> String -> Bool
-matches a s = match a s null
-          </code></pre>
-        </section>
-
-        <section>
-          <h2>All together, now</h2>
-          <pre><code style="font-size: 80%;" data-trim class="haskell">
-data Re = Lit Char | Seq Re Re | Or Re Re | Star Re
-
-match (Lit c) [] k = False
-match (Lit c) (x:xs) k = c == x && k xs
-match (Seq a b) s k = match a s (\rest -> match b rest k)
-match (Or a b) s k = match a s k || match b s k
-match (Star a) s k = match a s (\rest -> match (Star a) rest k) || k s
-
-matches a s = match a s null
-          </code></pre>
         </section>
 
         <section>
@@ -247,22 +193,41 @@ matches a s = match a s null
           <p>Every function could manipulate its own future! You could:</p>
           <ul>
             <li class="fragment" data-fragment-id="0">
-              Call continuations multiple times!
+              Continue multiple times!
               <i>Multiple choice futures!</i></li>
             <!-- NB: like the list monad, or the "amb" operator -->
             </li>
             <li class="fragment" data-fragment-id="1">
-              Store continuations for later use!
-              <i>Delayed execution!</i>
+              Continue from an earlier function!
+              <i>Early exit! Exceptions!</i>
             </li>
-            <li class="fragment" data-fragment-id="2">
-              Switch back and forth between futures!<br>
+            <li class="fragment" data-fragment-id="3">
+              Switch back and forth between continuations!<br>
             <i>Generators! Coroutines! Threads!</i></li>
           </ul>
+
+          <aside class="notes">
+            <ol><li>Backtracking search, regexps, List monad.
+                <li>Stack-jumping, <code>longjmp</code>
+            </ol>
+          </aside>
         </section>
 
         <section><h1>Remember <code>call/cc</code>?</h1></section>
         <!-- call/cc does this automatically for you -->
+
+        <section>
+          <h2>Curry-Howard and CPS</h2>
+          <p>If proofs are programs, what does <code>call/cc</code> prove?</p>
+          <p>If CPS transforms programs, what does it do to proofs?</p>
+          <p>What does <i>time travel</i> mean in a proof?</p>
+        </section>
+
+        <aside class="notes">
+          <p> <code>call/cc</code> = Pierce's law ≅ LEM. </p>
+          <p> CPS embeds classical in constructive logic. </p>
+          <p> Time travel is backtracking search over LEM. </p>
+        </aside>
 
       </div> <!-- slides -->
 
